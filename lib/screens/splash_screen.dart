@@ -1,128 +1,165 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
 import 'login_screen.dart';
+import 'home_screen.dart';
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+
+    _fade = CurvedAnimation(
+      parent: _ctrl,
+      curve: Curves.easeIn,
+    );
+
+    _ctrl.forward();
+
+    _startSplash();
+  }
+
+  Future<void> _startSplash() async {
+    await Future.delayed(const Duration(seconds: 3));
+
+    if (!mounted) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            user != null ? const HomeScreen() : const LoginScreen(),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.cream,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ── Main centered content ──────────────────────────────────────
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // App icon box
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: AppColors.charcoal,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Center(
-                        child: CustomPaint(
-                          size: const Size(40, 40),
-                          painter: _LogoIconPainter(),
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      body: FadeTransition(
+        opacity: _fade,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.lightTextPrimary,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Center(
+                          child: CustomPaint(
+                            size: const Size(40, 40),
+                            painter: _LogoPainter(),
+                          ),
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Brand name
-                    Text('ArtGram', style: AppTextStyles.brandLarge),
-
-                    const SizedBox(height: 4),
-
-                    // Tagline
-                    Text(
-                      'SHARE YOUR CANVAS',
-                      style: AppTextStyles.tagline,
-                    ),
-
-                    const SizedBox(height: 40),
-
-                    // Accent dot
-                    Container(
-                      width: 5,
-                      height: 5,
-                      decoration: const BoxDecoration(
-                        color: AppColors.rose,
-                        shape: BoxShape.circle,
+                      const SizedBox(height: 16),
+                      Text(
+                        'ArtGram',
+                        style: Theme.of(context)
+                            .appBarTheme
+                            .titleTextStyle
+                            ?.copyWith(
+                              fontSize: 42,
+                              letterSpacing: -0.5,
+                            ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        'SHARE YOUR CANVAS',
+                        style: TextStyle(
+                          fontSize: 12,
+                          letterSpacing: 2.0,
+                          fontWeight: FontWeight.w400,
+                          color: isDark
+                              ? AppColors.darkTextMid
+                              : AppColors.lightTextMid,
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: const BoxDecoration(
+                          color: AppColors.rose,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-
-            // ── Bottom CTA ────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(28, 0, 28, 32),
-              child: Column(
-                children: [
-                  // Get started button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const LoginScreen(),
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.charcoal,
-                        foregroundColor: AppColors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text('Get Started', style: AppTextStyles.buttonPrimary),
-                    ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 48),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color:
+                        isDark ? AppColors.roseDark : AppColors.rose,
                   ),
-
-                  const SizedBox(height: 16),
-
-                  Text(
-                    'FROM ARTGRAM STUDIO',
-                    style: AppTextStyles.tagline.copyWith(fontSize: 10),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ── Custom painter for the logo icon ────────────────────────────────────────
-class _LogoIconPainter extends CustomPainter {
+class _LogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final strokePaint = Paint()
+    final stroke = Paint()
       ..color = AppColors.rose
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0
       ..strokeCap = StrokeCap.round;
 
-    final fillPaint = Paint()
+    final fill = Paint()
       ..color = AppColors.rose
       ..style = PaintingStyle.fill;
 
-    final accentPaint = Paint()
+    final accent = Paint()
       ..color = AppColors.roseSoft
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5
@@ -131,23 +168,31 @@ class _LogoIconPainter extends CustomPainter {
     final cx = size.width / 2;
     final cy = size.height / 2;
 
-    // Outer circle
-    canvas.drawCircle(Offset(cx, cy), 12, strokePaint);
+    canvas.drawCircle(
+      Offset(cx, cy),
+      12,
+      stroke,
+    );
 
-    // Inner filled circle
-    canvas.drawCircle(Offset(cx, cy), 5, fillPaint);
+    canvas.drawCircle(
+      Offset(cx, cy),
+      5,
+      fill,
+    );
 
-    // Decorative arc 1
-    final path1 = Path();
-    path1.moveTo(cx - 12, cy);
-    path1.quadraticBezierTo(cx - 6, cy - 10, cx, cy - 6);
-    canvas.drawPath(path1, accentPaint);
+    canvas.drawPath(
+      Path()
+        ..moveTo(cx - 12, cy)
+        ..quadraticBezierTo(cx - 6, cy - 10, cx, cy - 6),
+      accent,
+    );
 
-    // Decorative arc 2
-    final path2 = Path();
-    path2.moveTo(cx + 12, cy);
-    path2.quadraticBezierTo(cx + 6, cy + 10, cx, cy + 6);
-    canvas.drawPath(path2, accentPaint);
+    canvas.drawPath(
+      Path()
+        ..moveTo(cx + 12, cy)
+        ..quadraticBezierTo(cx + 6, cy + 10, cx, cy + 6),
+      accent,
+    );
   }
 
   @override

@@ -23,8 +23,7 @@ class AppTheme {
         foregroundColor: AppColors.lightTextPrimary,
         elevation: 0,
         titleTextStyle: GoogleFonts.cormorantGaramond(
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
+          fontSize: 22, fontWeight: FontWeight.w700,
           color: AppColors.lightTextPrimary,
         ),
         iconTheme: const IconThemeData(color: AppColors.lightTextPrimary),
@@ -33,9 +32,7 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.lightSurface,
-        hintStyle: GoogleFonts.plusJakartaSans(
-          fontSize: 14, color: AppColors.lightTextLight,
-        ),
+        hintStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: AppColors.lightTextLight),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -72,15 +69,11 @@ class AppTheme {
           side: const BorderSide(color: AppColors.lightBorder, width: 1.5),
           padding: const EdgeInsets.symmetric(vertical: 13),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: GoogleFonts.plusJakartaSans(
-            fontSize: 13, fontWeight: FontWeight.w500,
-          ),
+          textStyle: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w500),
         ),
       ),
-      textTheme: GoogleFonts.plusJakartaSansTextTheme().apply(
-        bodyColor: AppColors.lightTextPrimary,
-        displayColor: AppColors.lightTextPrimary,
-      ),
+      textTheme: GoogleFonts.plusJakartaSansTextTheme()
+          .apply(bodyColor: AppColors.lightTextPrimary, displayColor: AppColors.lightTextPrimary),
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
     );
@@ -106,9 +99,7 @@ class AppTheme {
         foregroundColor: AppColors.darkTextPrimary,
         elevation: 0,
         titleTextStyle: GoogleFonts.cormorantGaramond(
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
-          color: AppColors.darkTextPrimary,
+          fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.darkTextPrimary,
         ),
         iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
       ),
@@ -116,9 +107,7 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.darkCard,
-        hintStyle: GoogleFonts.plusJakartaSans(
-          fontSize: 14, color: AppColors.darkTextLight,
-        ),
+        hintStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: AppColors.darkTextLight),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -155,15 +144,11 @@ class AppTheme {
           side: const BorderSide(color: AppColors.darkBorder, width: 1.5),
           padding: const EdgeInsets.symmetric(vertical: 13),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: GoogleFonts.plusJakartaSans(
-            fontSize: 13, fontWeight: FontWeight.w500,
-          ),
+          textStyle: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w500),
         ),
       ),
-      textTheme: GoogleFonts.plusJakartaSansTextTheme().apply(
-        bodyColor: AppColors.darkTextPrimary,
-        displayColor: AppColors.darkTextPrimary,
-      ),
+      textTheme: GoogleFonts.plusJakartaSansTextTheme()
+          .apply(bodyColor: AppColors.darkTextPrimary, displayColor: AppColors.darkTextPrimary),
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
     );

@@ -43,3 +43,28 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+
+# Flutter
+.dart_tool/
+.packages
+.pub/
+build/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Environment files
+.env
+
+# Images uploads
+images/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store

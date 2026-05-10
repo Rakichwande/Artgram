@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "870640294623",
+    "project_id": "artgram-e4223",
+    "storage_bucket": "artgram-e4223.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:870640294623:android:bf4dd4d3cdd2ca5e5b276a",
+        "android_client_info": {
+          "package_name": "com.example.artgram"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNaunoPnkUe-125SXPbn4bIu8O-hSpZM0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

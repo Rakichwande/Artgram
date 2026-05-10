@@ -1,59 +1,95 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/post_model.dart';
+import '../models/comment_model.dart';
 
-/// Wraps all Firestore database operations.
-/// Swap these method bodies for HTTP calls when migrating to FastAPI.
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // ── Collection reference ───────────────────────────────────────────────
-  CollectionReference<Map<String, dynamic>> get _posts =>
-      _db.collection('posts');
+  CollectionReference<Map<String, dynamic>> get _posts    => _db.collection('posts');
+  CollectionReference<Map<String, dynamic>> get _comments => _db.collection('comments');
 
-  // ── Real-time feed stream ──────────────────────────────────────────────
-  /// Returns a live stream of posts ordered by newest first.
+  // ── Posts ──────────────────────────────────────────────────────────────────
   Stream<List<PostModel>> getPostsStream() {
     return _posts
         .orderBy('timestamp', descending: true)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => PostModel.fromFirestore(doc)).toList());
+        .map((s) => s.docs.map((d) => PostModel.fromFirestore(d)).toList());
   }
 
-  // ── Create a new post ──────────────────────────────────────────────────
-  Future<void> createPost(PostModel post) async {
-    await _posts.add(post.toMap());
+  Stream<List<PostModel>> getPostsByTagStream(String tag) {
+    if (tag == 'All') return getPostsStream();
+    return _posts
+        .where('tags', arrayContains: tag)
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((s) => s.docs.map((d) => PostModel.fromFirestore(d)).toList());
   }
 
-  // ── Toggle like on a post ──────────────────────────────────────────────
+  Future<void> createPost(PostModel post) async => _posts.add(post.toMap());
+
+  Future<List<PostModel>> getPostsByUser(String userId) async {
+    final snap = await _posts
+        .where('userId', isEqualTo: userId)
+        .orderBy('timestamp', descending: true)
+        .get();
+    return snap.docs.map((d) => PostModel.fromFirestore(d)).toList();
+  }
+
+  // ── Likes ──────────────────────────────────────────────────────────────────
   Future<void> toggleLike({
     required String postId,
     required String userId,
     required bool isCurrentlyLiked,
   }) async {
     final ref = _posts.doc(postId);
-    await _db.runTransaction((transaction) async {
-      final snapshot = await transaction.get(ref);
-      if (!snapshot.exists) return;
-      final currentLikes = (snapshot.data()?['likes'] ?? 0) as int;
-      final newLikes = isCurrentlyLiked
-          ? (currentLikes - 1).clamp(0, 9999999)
-          : currentLikes + 1;
-      transaction.update(ref, {'likes': newLikes});
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (!snap.exists) return;
+      final data    = snap.data()!;
+      final likedBy = List<String>.from(data['likedBy'] ?? []);
+      final cur     = (data['likes'] ?? 0) as int;
+      if (isCurrentlyLiked) {
+        likedBy.remove(userId);
+        tx.update(ref, {'likedBy': likedBy, 'likes': (cur - 1).clamp(0, 9999999)});
+      } else {
+        if (!likedBy.contains(userId)) {
+          likedBy.add(userId);
+          tx.update(ref, {'likedBy': likedBy, 'likes': cur + 1});
+        }
+      }
     });
   }
 
-  // ── Delete a post ──────────────────────────────────────────────────────
-  Future<void> deletePost(String postId) async {
-    await _posts.doc(postId).delete();
+  // ── Comments — NO orderBy to avoid needing a composite index ──────────────
+  // Sorting is done in Dart after fetching — instant response, no index needed
+  Stream<List<CommentModel>> getCommentsStream(String postId) {
+    return _comments
+        .where('postId', isEqualTo: postId)
+        .snapshots()
+        .map((s) {
+          final list = s.docs.map((d) => CommentModel.fromFirestore(d)).toList();
+          // Sort by timestamp ascending in Dart — no Firestore index required
+          list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+          return list;
+        });
   }
 
-  // ── Get posts by a specific user ───────────────────────────────────────
-  Future<List<PostModel>> getPostsByUser(String userId) async {
-    final snapshot = await _posts
-        .where('userId', isEqualTo: userId)
-        .orderBy('timestamp', descending: true)
-        .get();
-    return snapshot.docs.map((doc) => PostModel.fromFirestore(doc)).toList();
+  Future<void> addComment(CommentModel comment) async {
+    // Simple add — no transaction needed, faster response
+    final commentRef = await _comments.add(comment.toMap());
+    // Update comment count separately
+    await _posts.doc(comment.postId).update({
+      'comments': FieldValue.increment(1),
+    });
+  }
+
+  Future<void> deleteComment({
+    required String commentId,
+    required String postId,
+  }) async {
+    await _comments.doc(commentId).delete();
+    await _posts.doc(postId).update({
+      'comments': FieldValue.increment(-1),
+    });
   }
 }

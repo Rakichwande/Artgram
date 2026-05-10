@@ -1,264 +1,264 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../repositories/auth_repository.dart';
+import '../repositories/post_repository.dart';
+import '../models/post_model.dart';
+import '../providers/theme_provider.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
 import '../widgets/post_card.dart';
-import '../widgets/story_item.dart';
+import '../widgets/categories_row.dart';
+import '../widgets/empty_feed_state.dart';
 import 'upload_screen.dart';
+import 'discover_screen.dart';
+import 'notifications_screen.dart';
+import 'profile_screen.dart';
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentTab = 0;
+  int    _tab         = 0;
+  // FIX 1: selectedTag lives here — never reset by tab switches
+  String _selectedTag = 'All';
+  final  _postRepo    = PostRepository();
 
-  // ── Sample feed data ───────────────────────────────────────────────────────
-  final List<PostData> _posts = const [
-    PostData(
-      initials: 'KL',
-      username: '@klee_art',
-      timeAgo: '2h ago',
-      avatarBg: AppColors.av1Bg,
-      avatarFg: AppColors.av1Fg,
-      artworkGradient: [
-        Color(0xFFF5D5CC),
-        Color(0xFFE8B4A8),
-        Color(0xFFC97B6E),
-      ],
-      caption: 'New oil painting — golden hour series 🌅 #OilPainting #AbstractArt',
-      likeCount: 248,
-      commentCount: 34,
-      isLiked: true,
-    ),
-    PostData(
-      initials: 'MV',
-      username: '@monet_v',
-      timeAgo: '5h ago',
-      avatarBg: AppColors.av2Bg,
-      avatarFg: AppColors.av2Fg,
-      artworkGradient: [
-        Color(0xFFD4E8F0),
-        Color(0xFFA8C8DE),
-        Color(0xFF7EB0D4),
-      ],
-      caption:
-          'Watercolour studies, experimenting with negative space ✨ #Watercolour #ArtStudy',
-      likeCount: 112,
-      commentCount: 19,
-    ),
-    PostData(
-      initials: 'RD',
-      username: '@r.draw',
-      timeAgo: '8h ago',
-      avatarBg: AppColors.av4Bg,
-      avatarFg: AppColors.av4Fg,
-      artworkGradient: [
-        Color(0xFFF0E6D0),
-        Color(0xFFE0C89A),
-        Color(0xFFC4A46E),
-      ],
-      caption:
-          'Charcoal landscape, dawn mood 🖤 #Charcoal #Landscape #TraditionalArt',
-      likeCount: 67,
-      commentCount: 8,
-    ),
-    PostData(
-      initials: 'SB',
-      username: '@skbk',
-      timeAgo: '12h ago',
-      avatarBg: AppColors.av3Bg,
-      avatarFg: AppColors.av3Fg,
-      artworkGradient: [
-        Color(0xFFD8EFD0),
-        Color(0xFFB4DCA8),
-        Color(0xFF7CC472),
-      ],
-      caption:
-          'Sketchbook page 47 — loose gesture drawings 🖊 #Sketchbook #GestureDrawing',
-      likeCount: 189,
-      commentCount: 22,
-    ),
-  ];
+  // FIX 4: saved posts tracked in memory (Phase 2 will persist to FastAPI)
+  final Set<String> _savedPostIds = {};
+
+  void _onSaveToggled(String postId) {
+    setState(() {
+      if (_savedPostIds.contains(postId)) {
+        _savedPostIds.remove(postId);
+      } else {
+        _savedPostIds.add(postId);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isDark      = Theme.of(context).brightness == Brightness.dark;
+    final surfaceBg   = isDark ? AppColors.darkSurface    : AppColors.lightSurface;
+    final feedBg      = isDark ? AppColors.darkFeed        : AppColors.lightFeed;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textMid     = isDark ? AppColors.darkTextMid     : AppColors.lightTextMid;
+    final accent      = isDark ? AppColors.roseDark        : AppColors.rose;
+
     return Scaffold(
-      backgroundColor: AppColors.feedBg,
+      backgroundColor: feedBg,
+      floatingActionButton: _tab == 0
+          ? FloatingActionButton(
+              onPressed: () => setState(() => _tab = 2),
+              backgroundColor: accent,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              child: const Icon(Icons.add_photo_alternate_outlined, size: 26),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+
       body: SafeArea(
         child: Column(
           children: [
-            // ── App Bar ──────────────────────────────────────────────────
-            _buildAppBar(),
+            // AppBar
+            Container(
+              color: surfaceBg,
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+              child: Row(
+                children: [
+                  Text('ArtGram',
+                    style: Theme.of(context).appBarTheme.titleTextStyle),
+                  const Spacer(),
+                  _AppBarIcon(
+                    icon: Icons.search_outlined,
+                    color: textPrimary,
+                    onTap: () => setState(() => _tab = 1),
+                  ),
+                  const SizedBox(width: 12),
+                  _AppBarIcon(
+                    icon: Icons.notifications_outlined,
+                    color: textPrimary,
+                    onTap: () => setState(() => _tab = 3),
+                  ),
+                  const SizedBox(width: 12),
+                  _AppBarIcon(
+                    icon: isDark
+                        ? Icons.light_mode_outlined
+                        : Icons.dark_mode_outlined,
+                    color: textMid,
+                    onTap: () => context.read<ThemeProvider>().toggle(),
+                  ),
+                ],
+              ),
+            ),
 
-            // ── Feed content ─────────────────────────────────────────────
+            // Tab body — FIX 1: feed tab is always index 0 in stack
+            // selectedTag is passed down and never lost
             Expanded(
-              child: _currentTab == 0 ? _buildFeedTab() : _buildPlaceholderTab(),
+              child: IndexedStack(
+                index: _tab,
+                children: [
+                  _FeedTab(
+                    postRepo:        _postRepo,
+                    selectedTag:     _selectedTag,
+                    savedPostIds:    _savedPostIds,
+                    onTagChanged:    (tag) => setState(() => _selectedTag = tag),
+                    onSaveToggled:   _onSaveToggled,
+                  ),
+                  const DiscoverScreen(),
+                  UploadScreen(
+                    isTab: true,
+                    onUploadSuccess: () => setState(() => _tab = 0),
+                  ),
+                  const NotificationsScreen(),
+                  const ProfileScreen(),
+                ],
+              ),
             ),
 
-            // ── Bottom navigation ─────────────────────────────────────────
-            _buildBottomNav(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── App bar ────────────────────────────────────────────────────────────────
-  Widget _buildAppBar() {
-    return Container(
-      color: AppColors.white,
-      padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text('ArtGram', style: AppTextStyles.brandAppBar),
-          Row(
-            children: [
-              _IconButton(icon: Icons.chat_bubble_outline, onTap: () {}),
-              const SizedBox(width: 14),
-              _IconButton(icon: Icons.favorite_border, onTap: () {}),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Main feed tab ─────────────────────────────────────────────────────────
-  Widget _buildFeedTab() {
-    return CustomScrollView(
-      slivers: [
-        // Stories row
-        SliverToBoxAdapter(child: _buildStoriesRow()),
-
-        // Post cards
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) => PostCard(post: _posts[index]),
-            childCount: _posts.length,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Stories row ───────────────────────────────────────────────────────────
-  Widget _buildStoriesRow() {
-    return Container(
-      color: AppColors.white,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        child: Row(
-          children: const [
-            StoryItem(
-              initials: '+',
-              name: 'Your story',
-              isAddButton: true,
-            ),
-            SizedBox(width: 10),
-            StoryItem(
-              initials: 'KL',
-              name: '@klee_art',
-              avatarBg: AppColors.av1Bg,
-              avatarFg: AppColors.av1Fg,
-            ),
-            SizedBox(width: 10),
-            StoryItem(
-              initials: 'MV',
-              name: '@monet_v',
-              avatarBg: AppColors.av2Bg,
-              avatarFg: AppColors.av2Fg,
-            ),
-            SizedBox(width: 10),
-            StoryItem(
-              initials: 'RD',
-              name: '@r.draw',
-              avatarBg: AppColors.av4Bg,
-              avatarFg: AppColors.av4Fg,
-            ),
-            SizedBox(width: 10),
-            StoryItem(
-              initials: 'SB',
-              name: '@skbk',
-              avatarBg: AppColors.av3Bg,
-              avatarFg: AppColors.av3Fg,
+            // Bottom nav
+            _BottomNav(
+              currentTab:    _tab,
+              accent:        accent,
+              surfaceBg:     surfaceBg,
+              textPrimary:   textPrimary,
+              isDark:        isDark,
+              onTabSelected: (i) => setState(() => _tab = i),
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  // ── Placeholder for other tabs ────────────────────────────────────────────
-  Widget _buildPlaceholderTab() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.construction_outlined, size: 48, color: AppColors.light),
-          const SizedBox(height: 12),
-          Text(
-            'Coming soon',
-            style: AppTextStyles.subtitle,
-          ),
-        ],
-      ),
+// ── Feed tab ──────────────────────────────────────────────────────────────────
+class _FeedTab extends StatelessWidget {
+  final PostRepository   postRepo;
+  final String           selectedTag;
+  final Set<String>      savedPostIds;
+  final ValueChanged<String> onTagChanged;
+  final ValueChanged<String> onSaveToggled;
+
+  const _FeedTab({
+    required this.postRepo,
+    required this.selectedTag,
+    required this.savedPostIds,
+    required this.onTagChanged,
+    required this.onSaveToggled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark     = Theme.of(context).brightness == Brightness.dark;
+    final midColor   = isDark ? AppColors.darkTextMid   : AppColors.lightTextMid;
+    final lightColor = isDark ? AppColors.darkTextLight : AppColors.lightTextLight;
+
+    return StreamBuilder<List<PostModel>>(
+      stream: postRepo.getPostsByTagStream(selectedTag),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.rose));
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.wifi_off_outlined, size: 48, color: lightColor),
+              const SizedBox(height: 12),
+              Text('Could not load posts',
+                style: TextStyle(color: midColor, fontSize: 13)),
+            ]),
+          );
+        }
+
+        final posts = snapshot.data ?? [];
+
+        return CustomScrollView(
+          // FIX 1: PageStorageKey preserves scroll position across tab switches
+          key: PageStorageKey<String>('feed_$selectedTag'),
+          slivers: [
+            SliverToBoxAdapter(
+              child: CategoriesRow(
+                selectedTag:         selectedTag,
+                onCategorySelected:  onTagChanged,
+              ),
+            ),
+            if (posts.isEmpty)
+              const SliverFillRemaining(child: EmptyFeedState())
+            else
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (_, i) => PostCard(
+                    post:          posts[i],
+                    isSaved:       savedPostIds.contains(posts[i].id),
+                    onSaveToggled: onSaveToggled,
+                  ),
+                  childCount: posts.length,
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
+}
 
-  // ── Bottom navigation bar ─────────────────────────────────────────────────
-  Widget _buildBottomNav() {
-    const tabs = [
-      _NavTab(icon: Icons.home_outlined,      activeIcon: Icons.home),
-      _NavTab(icon: Icons.search,             activeIcon: Icons.search),
-      _NavTab(icon: Icons.add_box_outlined,   activeIcon: Icons.add_box),
-      _NavTab(icon: Icons.tv_outlined,        activeIcon: Icons.tv),
-      _NavTab(icon: Icons.person_outline,     activeIcon: Icons.person),
+// ── Bottom nav ────────────────────────────────────────────────────────────────
+class _BottomNav extends StatelessWidget {
+  final int     currentTab;
+  final Color   accent, surfaceBg, textPrimary;
+  final bool    isDark;
+  final ValueChanged<int> onTabSelected;
+
+  const _BottomNav({
+    required this.currentTab,
+    required this.accent,
+    required this.surfaceBg,
+    required this.textPrimary,
+    required this.isDark,
+    required this.onTabSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final inactiveColor = isDark
+        ? AppColors.darkTextLight
+        : AppColors.lightTextLight;
+
+    final tabs = [
+      _NavTab(icon: Icons.home_outlined,         activeIcon: Icons.home),
+      _NavTab(icon: Icons.explore_outlined,       activeIcon: Icons.explore),
+      _NavTab(icon: Icons.add_box_outlined,       activeIcon: Icons.add_box),
+      _NavTab(icon: Icons.notifications_outlined, activeIcon: Icons.notifications),
+      _NavTab(icon: Icons.person_outline,         activeIcon: Icons.person),
     ];
 
     return Container(
-      color: AppColors.white,
-      padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
+      color: surfaceBg,
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: List.generate(tabs.length, (i) {
-          final isActive = _currentTab == i;
+          final active = currentTab == i;
           return GestureDetector(
-            onTap: () {
-              if (i == 2) {
-                // Upload tab — navigate to upload screen
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const UploadScreen()),
-                );
-                return;
-              }
-              setState(() => _currentTab = i);
-            },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isActive ? tabs[i].activeIcon : tabs[i].icon,
-                  size: 22,
-                  color: isActive ? AppColors.charcoal : AppColors.light,
-                ),
-                if (isActive)
-                  Container(
-                    margin: const EdgeInsets.only(top: 3),
-                    width: 3.5,
-                    height: 3.5,
-                    decoration: const BoxDecoration(
-                      color: AppColors.charcoal,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-              ],
+            onTap: () => onTabSelected(i),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: active ? accent.withOpacity(0.1) : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                active ? tabs[i].activeIcon : tabs[i].icon,
+                size: 24,
+                color: active ? accent : inactiveColor,
+              ),
             ),
           );
         }),
@@ -268,27 +268,22 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _NavTab {
-  final IconData icon;
-  final IconData activeIcon;
+  final IconData icon, activeIcon;
   const _NavTab({required this.icon, required this.activeIcon});
 }
 
-// ── Small icon button for the app bar ────────────────────────────────────────
-class _IconButton extends StatelessWidget {
-  final IconData icon;
+class _AppBarIcon extends StatelessWidget {
+  final IconData   icon;
+  final Color      color;
   final VoidCallback onTap;
-
-  const _IconButton({required this.icon, required this.onTap});
+  const _AppBarIcon({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: 32,
-        height: 32,
-        child: Icon(icon, size: 20, color: AppColors.charcoal),
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      GestureDetector(onTap: onTap,
+        child: Icon(icon, size: 22, color: color));
 }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color rose       = Color(0xFFC97B6E);
-  static const Color roseLight  = Color(0xFFF2E5E2);
-  static const Color roseSoft   = Color(0xFFE8C4BC);
-  static const Color roseDark   = Color(0xFFE8907F);
+  static const Color rose          = Color(0xFFC97B6E);
+  static const Color roseLight     = Color(0xFFF2E5E2);
+  static const Color roseSoft      = Color(0xFFE8C4BC);
+  static const Color roseDark      = Color(0xFFE8907F);
 
   static const Color lightBackground  = Color(0xFFFAF7F2);
   static const Color lightSurface     = Color(0xFFFFFFFF);
@@ -34,6 +34,4 @@ class AppColors {
 
   static const Color error   = Color(0xFFD94F4F);
   static const Color success = Color(0xFF4CAF82);
-
-  static Color? get border => null;
 }

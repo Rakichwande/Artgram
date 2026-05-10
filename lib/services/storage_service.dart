@@ -1,72 +1,75 @@
 import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:uuid/uuid.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../utils/api_config.dart';
 
-/// Wraps Firebase Storage for image uploads.
-/// Replace uploadImage() body with an HTTP multipart call for FastAPI migration.
+/// Uploads images to FastAPI server instead of Firebase Storage.
+/// 
+/// Phase 1B: POST multipart image → FastAPI → returns URL
+/// Phase 2:  This file stays the same (already using FastAPI)
 class StorageService {
-  final FirebaseStorage _storage = FirebaseStorage.instance;
-  final _uuid = const Uuid();
 
-  /// Uploads a local image file and returns the public download URL.
-  /// [userId]    — used to organise files by user in storage
-  /// [imageFile] — the local File selected by image_picker
   Future<StorageResult> uploadImage({
     required String userId,
-    required File imageFile,
+    required File   imageFile,
   }) async {
     try {
-      // Create a unique filename: posts/userId/uuid.jpg
-      final fileName = '${_uuid.v4()}.jpg';
-      final ref = _storage.ref().child('posts/$userId/$fileName');
-
-      // Upload with metadata
-      final uploadTask = ref.putFile(
-        imageFile,
-        SettableMetadata(contentType: 'image/jpeg'),
+      // Build multipart request
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(ApiConfig.uploadEndpoint),
       );
 
-      // Wait for completion
-      final snapshot = await uploadTask;
+      // Attach image file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          imageFile.path,
+        ),
+      );
 
-      // Get public URL
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      return StorageResult.success(downloadUrl);
-    } on FirebaseException catch (e) {
+      // Add user ID as header for future auth use
+      request.headers['X-User-Id'] = userId;
+
+      // Send request
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 201) {
+        final data       = jsonDecode(response.body) as Map<String, dynamic>;
+        final imagePath  = data['image_url'] as String;
+
+        // Build full URL from the relative path FastAPI returns
+        final fullUrl = '${ApiConfig.baseUrl}$imagePath';
+
+        return StorageResult.success(fullUrl);
+      } else {
+        final data    = jsonDecode(response.body) as Map<String, dynamic>;
+        final detail  = data['detail'] ?? 'Upload failed (${response.statusCode})';
+        return StorageResult.failure(detail.toString());
+      }
+    } on SocketException {
       return StorageResult.failure(
-        e.message ?? 'Upload failed. Please try again.',
+        'Cannot reach server. Make sure FastAPI is running and your IP in api_config.dart is correct.',
       );
     } catch (e) {
-      return StorageResult.failure('An unexpected error occurred during upload.');
-    }
-  }
-
-  /// Delete an image from storage by its URL
-  Future<void> deleteImage(String imageUrl) async {
-    try {
-      final ref = _storage.refFromURL(imageUrl);
-      await ref.delete();
-    } catch (_) {
-      // Silently fail — the post may already be deleted
+      return StorageResult.failure('Upload error: ${e.toString()}');
     }
   }
 }
 
-// ── Result wrapper ────────────────────────────────────────────────────────────
 class StorageResult {
-  final bool isSuccess;
+  final bool    isSuccess;
   final String? downloadUrl;
   final String? errorMessage;
 
-  const StorageResult._({
-    required this.isSuccess,
-    this.downloadUrl,
-    this.errorMessage,
-  });
+  const StorageResult._({required this.isSuccess, this.downloadUrl, this.errorMessage});
 
   factory StorageResult.success(String url) =>
       StorageResult._(isSuccess: true, downloadUrl: url);
 
-  factory StorageResult.failure(String message) =>
-      StorageResult._(isSuccess: false, errorMessage: message);
+  factory StorageResult.failure(String msg) =>
+      StorageResult._(isSuccess: false, errorMessage: msg);
 }

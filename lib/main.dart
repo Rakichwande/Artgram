@@ -11,12 +11,7 @@ import 'screens/splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-
-  // Initialise Firebase — uses the generated firebase_options.dart
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(
     MultiProvider(
       providers: [
@@ -33,14 +28,13 @@ class ArtGramApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = context.watch<ThemeProvider>();
-
+    final theme = context.watch<ThemeProvider>();
     return MaterialApp(
       title: 'ArtGram',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: themeProvider.mode,
+      themeMode: theme.mode,
       home: const SplashScreen(),
     );
   }
